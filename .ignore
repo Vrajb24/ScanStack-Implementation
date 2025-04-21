@@ -1,0 +1,22 @@
+# Ignore the reference paper PDF
+Scan Stack_ A Search-based Concurrent Stack for GPU.pdf
+
+# Ignore compiled object files
+*.o
+
+# Ignore executables (add your specific executable names if known)
+# CAS_stack
+# Scan_stack
+# a.out
+
+# Ignore build directories (if you use CMake or similar)
+build/
+Build/
+*.vcxproj*
+*.sln
+*.suo
+
+# Ignore other common files
+*.log
+*.tmp
+*.bak
