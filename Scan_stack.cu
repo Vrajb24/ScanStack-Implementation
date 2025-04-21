@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <bits/stdc++.h>
 #include <chrono>
+#include <limits.h>
 
 using namespace std::chrono;
 
@@ -51,11 +52,11 @@ __device__ int eliminateOrStackOp(Stack *stack, int op, int val, int tid) {
     // 1) Try central stack first
     if (ti.op == OP_PUSH) {
         res = stack->push(ti.value);
-        if (res) return res;
+        if (res != INT_MIN) return res;
         // if (res != INVALID) return res;
     } else {
         res = stack->pop();
-        if (res) return res;
+        if (res != INT_MIN) return res;
         // if (res != INVALID) return res;
     }
 
@@ -139,8 +140,10 @@ struct ScanStack {
 
         while(retries++ < MAX_RETRIES)
         {
-            if(retries == MAX_RETRIES)
-              return 0;
+            if(retries == MAX_RETRIES) {
+                return INT_MIN;
+            }
+              
 
             if (i >= capacity)
             {
@@ -208,8 +211,10 @@ struct ScanStack {
 
         while(retries++ < MAX_RETRIES)
         {
-            if(retries == MAX_RETRIES)
-              return 0;
+            if(retries == MAX_RETRIES) {
+                return INT_MIN;
+            }
+              
 
             if (i < 0)
             {
