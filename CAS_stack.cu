@@ -23,15 +23,15 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 }
 
 // --- Stack Data Structure ---
-// --- ORIGINAL LOGIC CODE (UNCHANGED) ---
+
 typedef struct {
     int* stack_data;    // Pointer to array allocated in global memory
     int32_t stack_top;      // Index of the top element (-1 if empty). Must be 32/64 bit for atomicCAS
     int stack_capacity; // Maximum size of the stack
 } Stack;
 
-// --- Device Functions for Stack Operations ---
-// --- ORIGINAL LOGIC CODE (UNCHANGED) ---
+=
+
 
 // Pushes a value onto the stack using CAS
 // Returns true on success, false on overflow
@@ -51,8 +51,7 @@ __device__ bool push_gpu(Stack* stack, int value) {
             return false; // Stack is full
         }
 
-        // Attempt to atomically update the stack top
-        // atomicCAS(address, compare_value, swap_value)
+        
         // Returns the OLD value at address before the CAS attempt
         int32_t assumed_old_top = atomicCAS((int32_t*)&stack->stack_top, old_top, new_top);
 
@@ -64,11 +63,11 @@ __device__ bool push_gpu(Stack* stack, int value) {
             return true;
         }
         // Else: CAS failed, another thread interfered. Loop again.
-        // The value of stack->stack_top might have changed, the loop will re-read it.
+       
     }
 }
 
-// Pops a value from the stack using CAS
+
 // Returns true on success (value stored in *result), false on underflow
 __device__ bool pop_gpu(Stack* stack, int* result) {
     int32_t old_top;
@@ -76,7 +75,7 @@ __device__ bool pop_gpu(Stack* stack, int* result) {
 
     while (true) {
         old_top = atomicAdd(&stack->stack_top, 0); // Atomic read
-                                                   // Alternate: old_top = stack->stack_top;
+                                                   
 
         // Check for stack underflow
         if (old_top < 0) {
@@ -91,24 +90,20 @@ __device__ bool pop_gpu(Stack* stack, int* result) {
 
         // Check if the CAS was successful
         if (assumed_old_top == old_top) {
-            // Success! Read the value from the location we claimed
+        
             *result = stack->stack_data[old_top]; // Read from the old top index
-            // Optional: Clear the popped location (depends on requirements)
-            // stack->stack_data[old_top] = 0; // Or some sentinel value
-            // printf("Thread %d: Popped %d from index %d. New top: %d\n", threadIdx.x + blockIdx.x * blockDim.x, *result, old_top, new_top); // Debug printf
             return true;
         }
         // Else: CAS failed, another thread interfered. Loop again.
     }
 }
 
-// Peeks at the top value without removing it
+
 // Returns true on success (value stored in *result), false if empty
-// NOTE: This is potentially racy. The element could be popped by another thread
-//       between reading stack_top and reading stack_data. Not protected by CAS.
+// NOTE: This is potentially racy. 
 __device__ bool peek_gpu(Stack* stack, int* result) {
     int32_t current_top = atomicAdd(&stack->stack_top, 0); // Atomic read of top
-                                                           // Alternate: current_top = stack->stack_top;
+                                                           
 
     if (current_top < 0) {
         return false; // Stack is empty
@@ -120,8 +115,8 @@ __device__ bool peek_gpu(Stack* stack, int* result) {
 }
 
 
-// --- Test Kernel (Original for Scalability) ---
-// --- ORIGINAL LOGIC CODE (UNCHANGED) ---
+// --- Test Kernel  ---
+
 __global__ void stack_test_kernel(Stack* d_stack, int num_ops_total, bool* d_push_results, bool* d_pop_results, int* d_pop_values) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -145,7 +140,7 @@ __global__ void stack_test_kernel(Stack* d_stack, int num_ops_total, bool* d_pus
 
 // --- Kernels for Verification Tests ---
 
-// Kernel for reporting detailed results of push OR pop operations
+
 // op_mode: 0 for push, 1 for pop
 __global__ void reporting_kernel(Stack* d_stack, int num_ops, int base_value, int op_mode,
                                  int* d_op_tid, int* d_op_type, bool* d_op_success, int* d_op_value)
@@ -295,7 +290,7 @@ bool run_verification_pops_gt_pushes(Stack* d_stack_struct_ptr, int* d_stack_dat
         test_passed = false;
     }
      if (successful_pops != successful_pushes) {
-        // This might happen due to races if pushes failed, but for small N should match
+        // This might happen due to races if pushes failed
         printf("INFO: Number of successful pops (%d) doesn't exactly match successful pushes (%d). This might be ok if pushes failed or due to races.\n", successful_pops, successful_pushes);
      }
 
@@ -396,7 +391,7 @@ bool run_verification_overflow(Stack* d_stack_struct_ptr, int* d_stack_data, int
     bool test_passed = true;
     // Use a smaller capacity for this specific test to make overflow feasible
     const int test_capacity = 50;
-    const int num_pushes = test_capacity + 10; // Attempt more pushes than capacity
+    const int num_pushes = test_capacity + 10; 
     const int base_value = 400;
     printf("Config: Test Capacity (Simulated)=%d, Pushes=%d\n", test_capacity, num_pushes);
 
@@ -412,7 +407,7 @@ bool run_verification_overflow(Stack* d_stack_struct_ptr, int* d_stack_data, int
     gpuErrchk(cudaMalloc(&d_push_results, num_pushes * sizeof(bool)));
     h_push_results = (bool*)malloc(num_pushes * sizeof(bool));
 
-    // Reset with the test capacity in mind (don't clear data beyond test_capacity if it matters)
+    // Reset with the test capacity in mind 
     reset_stack(d_stack_struct_ptr, d_stack_data, test_capacity, true);
 
     // Push Phase (using simpler kernel as no detailed log needed)
@@ -479,8 +474,7 @@ int main() {
     printf("Starting Verification Tests...\n");
     bool all_tests_passed = true;
 
-    // Adjust stack capacity for overflow test if needed (or run it with a simulated smaller capacity)
-    // For simplicity, overflow test internally simulates a smaller capacity.
+    /
 
     all_tests_passed &= run_verification_pops_gt_pushes(d_stack_struct_ptr, d_stack_data, stack_capacity, block_size);
     all_tests_passed &= run_verification_pop_empty(d_stack_struct_ptr, d_stack_data, stack_capacity, block_size);
@@ -491,8 +485,8 @@ int main() {
     printf("========================================\n");
 
 
-    // --- Scalability Tests (Original Code - Optional) ---
-    if (all_tests_passed) { // Optionally only run scalability if verification passes
+    // --- Scalability Tests ---
+    if (all_tests_passed) { 
         printf("\nStarting Scalability Tests...\n");
         int num_ops_tests[] = {1000, 10000, 100000, 500000, 1000000, 2000000};
 
