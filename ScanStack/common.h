@@ -266,7 +266,7 @@ __global__ void performOperations(ScanStack *stack, OpRequest *ops, int nOps)
     else
         return; // Exit threads beyond nOps
 
-    // __syncthreads();
+    __syncthreads();
 
     // Warp-level elimination: each warp's proxy thread scans its warp for push-pop pairs
     int warpId = tid / warpSize;
@@ -327,7 +327,6 @@ __global__ void performOperations(ScanStack *stack, OpRequest *ops, int nOps)
                 // Find a pop in any warp to eliminate with this push
                 int pushVal = opValue[pushIndex];
                 // Mark this push as temporarily invalid (to avoid others taking it) by setting type to 2.
-                // opType[pushIndex] = 2;
                 opType[pushIndex] = INVALID;
                 for (int j = 0; j < blockDim.x; ++j)
                 {
@@ -345,7 +344,6 @@ __global__ void performOperations(ScanStack *stack, OpRequest *ops, int nOps)
                     }
                 }
                 // If no pop found
-                // if (opType[pushIndex] == 2)
                 if (opType[pushIndex] == INVALID)
                 {
                     opType[pushIndex] = 1; // no pop found, set it to push as it was earlier
