@@ -1,53 +1,61 @@
-# CUDA Concurrent Stack Implementations: Scan Stack vs. CAS Stack
+# Lock-Free Linked-List Stack using CAS for GPU
 
-## Project Goal
+## Project Report
 
-This project implements and compares two concurrent stack data structures using CUDA:
+This repository contains the implementation and report for a lock-free concurrent stack designed for GPUs. The implementation utilizes a linked-list structure built upon a pre-allocated node pool and employs Compare-and-Swap (CAS) atomic operations for thread safety.
 
-1.  **CAS Stack**: A standard lock-free stack using Compare-and-Swap (CAS) operations and tagged pointers for memory reclamation, based on common lock-free linked-list techniques.
-2.  **Scan Stack**: An optimized, search-based concurrent stack designed for GPU architectures, as proposed by Noah South. This approach avoids a single atomic 'top' pointer, instead using a search-based method combined with optimizations to leverage GPU memory patterns and reduce contention.
+**Authors:**
+* Vraj Patel (241110080)
+* Aditya Azad (241110008)
+* Sparsh Sehgal (24111071)
 
-The primary goal is to evaluate the performance optimizations offered by the Scan Stack approach, including Lowest-Area searching and Elimination techniques, in terms of throughput and scalability compared to the CAS-based implementation on a GPU.
 
-## Implementations
+**(The full implementation report can be found in `report.pdf` or `main.tex`)**
 
-* `CAS_stack.cu`: Contains the implementation of a lock-free concurrent stack using atomic Compare-and-Swap (CAS) primitives and tagged pointers with a free list for node management and ABA problem prevention. It provides push, pop, and peek operations.
-    * **⚠️ Compatibility Warning**: This implementation requires GPU hardware and compiler support for 128-bit atomic operations (`unsigned __int128`). This may not be available on older GPU architectures. Ensure your target architecture (e.g., `sm_86` used in compile commands) supports this feature. Lack of support could lead to silent errors.
-* `Scan_stack.cu`: Contains the implementation of the Scan Stack. This uses an array-based structure and implements push and pop operations that search for the stack top. Key optimizations include:
-    * **Lowest-Area (LA) Searching**: Reduces the scan area by estimating the top's location.
-    * **Warp/Block-Level Elimination**: Lightweight pairing of push/pop operations within a block using shared memory.
-    * **Grid-Wide Elimination-Backoff**: A more robust elimination strategy using global memory arrays and atomic operations to match operations across the grid, adapting to contention levels.
-* `temp.cpp`: Appears to be a host-side C++ file potentially used for testing or managing the CUDA kernels (like the CAS stack), including verification logic and performance measurement.
+## Abstract
 
-## Contention Handling & Challenges
+This project implements a lock-free concurrent stack for GPUs based on a linked-list structure and Compare-and-Swap (CAS) atomic operations. This approach uses dynamically linked nodes allocated from a pre-defined memory pool. Key features include a tagged pointer scheme using 64-bit atomics to prevent the ABA problem and a concurrent free list for efficient node reclamation and reuse. We analyze the structure, core operations (push and pop), memory management strategy, and performance characteristics, including scalability results from experimental tests with varying pool capacities.
 
-* **CAS Stack**: Relies on atomic CAS for synchronization and tagged pointers to handle the ABA problem inherent in linked-list structures.
-* **Scan Stack**: Distributes contention via scanning. It uses invalidation cells (-2) and retracing logic during pops and pushes to handle race conditions like the "step over" problem. Elimination techniques (both local and grid-wide) further reduce contention on the central array structure. Balancing elimination overhead versus direct access is a key consideration.
+## Features
 
-## Performance Comparison
+* **Lock-Free Operations:** Push and pop operations are implemented without locks using atomic CAS primitives.
+* **Linked-List Structure:** Uses nodes allocated from a pre-defined pool in GPU global memory.
+* **ABA Problem Prevention:** Employs a 64-bit tagged pointer (32-bit index + 32-bit tag) mechanism, validated using a single atomic CAS operation.
+* **Concurrent Free List:** Includes a lock-free free list, also using tagged pointers, for efficient recycling of nodes without global synchronization.
+* **Verification Suite:** Includes tests for correctness, empty stack pops, and pool exhaustion.
+* **Scalability Testing:** Measures throughput under varying operation counts and pool capacities.
 
-The project aims to benchmark these implementations under various workloads (e.g., random mix, push-only, pop-only). The expectation, based on the reference paper and the report, is that the Scan Stack, particularly with Elimination and Lowest-Area (EL+LA) optimizations, will demonstrate significantly higher throughput compared to the non-optimized or CAS versions, especially under mixed workloads where elimination is effective. Memory coalescing is also a factor considered in the Scan Stack design.
+## Implementation Details
 
-## Reference Paper
+* **Tagged Pointers:** A `uint64_t` atomic variable holds both a 32-bit index (relative to the node pool start) and a 32-bit tag. The tag is incremented upon node recycling.
+* **CAS Operations:** `cuda::atomic<uint64_t>::compare_exchange_weak` is used to atomically update the `stack_top` and `free_list_top` pointers, checking both index and tag simultaneously.
+* **Memory Orders:** Uses CUDA C++ memory orders (e.g., `memory_order_acquire`, `memory_order_release`, `memory_order_relaxed`) for correct synchronization.
+* **Node Pool:** Nodes are pre-allocated in an array (`node_pool`). Initial allocation uses `next_free_node_idx`.
 
-The Scan Stack implementation is based on the concepts presented in:
+## Performance Summary
 
-* South, Noah Brennen, "Scan Stack: A Search-based Concurrent Stack for GPU" (2022). Electronic Theses and Dissertations. 2459.
-    [https://egrove.olemiss.edu/etd/2459](https://egrove.olemiss.edu/etd/2459)
+* **Contention Bottleneck:** Performance is primarily limited by contention on the atomic `stack_top` and `free_list_top` pointers, especially under high concurrency.
+* **Scalability:**
+    * With a large node pool (\~100k nodes), throughput decreases monotonically as thread count increases.
+    * With a smaller node pool (\~10k nodes), throughput showed non-monotonic behavior, initially increasing significantly before dropping, possibly due to cache effects and free list dynamics.
+* **Pool Capacity:** Performance characteristics are sensitive to the size of the pre-allocated node pool.
+* **Warp Scheduling:** Internal tests indicated a potential performance benefit (30-40% speedup) when scheduling operations per warp rather than per thread, although the final tests focused on thread-level assignment.
 
-## How to Compile and Run
+## Requirements
 
-*(Compilation commands based on Report.pdf)*
+* NVIDIA GPU with CUDA support (tested with compute capability 8.6 - Ampere)
+* CUDA Toolkit (tested with versions compatible with C++17 atomics)
+* C++17 compliant compiler (e.g., g++ version 9 or later)
 
-* **Scan Stack**:
-    ```bash
-    nvcc -O2 --allow-unsupported-compiler -ccbin g++-9 -std=c++17 -arch=sm_86 -lineinfo -res-usage -src-in-ptx Scan_stack.cu -o output && ./output
-    ```
-* **CAS Stack**:
-    ```bash
-    nvcc -O2 --allow-unsupported-compiler -ccbin g++-9 -std=c++17 -arch=sm_86 -lineinfo -res-usage -src-in-ptx CAS_stack.cu -o output && ./output
-    ```
+## Compilation and Usage
 
-## Project Repository
+The primary implementation is in `CAS_stack.cu`.
 
-* [https://github.com/Vrajb24/ScanStack-Implementation.git](https://github.com/Vrajb24/ScanStack-Implementation.git)
+To compile and run:
+
+```bash
+# Adjust -ccbin and -arch=sm_XX as needed for your compiler and GPU architecture
+# For NVIDIA A40 GPU, use -arch=sm_86
+nvcc -O2 --allow-unsupported-compiler -ccbin=g++-9 -std=c++17 -arch=sm_86 -lineinfo -res-usage CAS_stack.cu -o cas_output
+
+./cas_output
