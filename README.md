@@ -49,7 +49,8 @@ This project implements a lock-free concurrent stack for GPUs based on a linked-
 
 ## Compilation and Usage
 
-The primary implementation is in `CAS_stack.cu`.
+The primary implementation is in `CAS_stack.cu`. This works on more modern 128 bit architecutre GPU.
+The modified version is `CAS_stack_A40.cu` which will run on 64 bit architecture GPU.
 
 To compile and run:
 
