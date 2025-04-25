@@ -303,11 +303,12 @@ __global__ void performOperations(ScanStack *stack, OpRequest *ops, int nOps)
     __syncthreads();
 
     // Block - level elimination  : use block - wide proxy threads to eliminate remaining ops across warps We will let push operations drive the block - level elimination : each warp's proxy will attempt to match one leftover push with a pop from another warp.
-    bool cleared = 0;
+    bool cleared = 1;
     if (laneId == 0)
     {
-        while (!cleared)
+        while (cleared)
         {
+            cleared = 0;
             // Find one leftover push in this warp (if any)
             int pushIndex = -1;
             for (int k = warpId * warpSize; k < min((warpId + 1) * warpSize, blockDim.x); ++k)
@@ -315,11 +316,8 @@ __global__ void performOperations(ScanStack *stack, OpRequest *ops, int nOps)
                 if (opType[k] == 1)
                 {
                     pushIndex = k;
-                    break;
-                }
-                if (k == min((warpId + 1) * warpSize, blockDim.x))
-                {
                     cleared = 1;
+                    break;
                 }
             }
             if (pushIndex >= 0)
