@@ -10,7 +10,7 @@ This repository contains the implementation and report for a lock-free concurren
 * Sparsh Sehgal (24111071)
 
 
-**(The full implementation report can be found in `report.pdf` or `main.tex`)**
+**(The full implementation report can be found in `report.pdf`)**
 
 ## Abstract
 
