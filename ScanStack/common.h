@@ -316,7 +316,6 @@ __global__ void performOperations(ScanStack *stack, OpRequest *ops, int nOps)
                 if (opType[k] == 1)
                 {
                     pushIndex = k;
-                    cleared = 1;
                     break;
                 }
             }
@@ -337,6 +336,7 @@ __global__ void performOperations(ScanStack *stack, OpRequest *ops, int nOps)
                             ops[j].result = pushVal;         // pop gets value
                             ops[pushIndex].result = pushVal; // mark push as successful
                             opType[pushIndex] = 0;           // Mark the push as eliminated
+                            cleared = 1;
                             break;
                         }
                     }
