@@ -362,9 +362,7 @@ __global__ void performOperations(ScanStack *stack, OpRequest *ops, int nOps)
         {
             // Perform actual push on global stack for this thread
             int value = opValue[local_tid];
-            // int pushResult = stack.push(value);
             int pushResult = stack->push(value);
-            // printf("%d ", pushResult);
             // If pushResult is INVALID (-2), it means the stack was full
             ops[tid].result = pushResult;
         }
